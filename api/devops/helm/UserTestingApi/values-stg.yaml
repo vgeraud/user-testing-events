@@ -1,0 +1,16 @@
+Memory:
+  Limit: "256Mi"
+  Request: "256Mi"
+Cpu:
+  Request: "100m"
+
+ReplicaNumber: 2
+
+AzureContainerRegistryUrl: "wl0dev0registry0acr007b20b15e7b1.azurecr.io"
+AzureAppConfigurationUrl: "https://wl-stg-config-appcg-8bf2fb465ee0.azconfig.io"
+
+EnvironmentName: "stg"
+Host: "platform.workleap-stg.com"
+
+PodDisruptionBudget:
+  MinAvailable: 1

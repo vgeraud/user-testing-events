@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-deployment
+spec:
+  replicas: {{ .Values.ReplicaNumber }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+        version: {{ .Values.BuildVersion }}
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: workload-identity
+      containers:
+      - name: {{ .Release.Name }}-container
+        image: {{ .Values.AzureContainerRegistryUrl }}/{{ .Release.Name }}:{{ .Values.BuildVersion }}
+        imagePullPolicy: Always
+        env:
+        - name: DOTNET_ENVIRONMENT
+          value: {{ .Values.EnvironmentName }}
+        - name: APPCONFIGURATION__CONNECTIONSTRING
+          value: {{ .Values.AzureAppConfigurationUrl }}
+        - name: ASPNETCORE_APPLICATIONNAME
+          value: {{ .Release.Name }}
+        - name: ASPNETCORE_URLS
+          value: "http://+:8080"
+        resources:
+          limits:
+            memory: {{ quote .Values.Memory.Limit }}
+          requests:
+            memory: {{ quote .Values.Memory.Request }}
+            cpu: {{ quote .Values.Cpu.Request }}
+        ports:
+        - containerPort: 8080
+        lifecycle:
+          preStop:
+            exec:
+              command: ["sleep", "90"]
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.healthPath | default "/health" }}
+            port: 8080
+          periodSeconds: 5
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.healthPath | default "/health" }}
+            port: 8080
+          periodSeconds: 5
+          timeoutSeconds: 10
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: {{ .Values.startupProbePath | default "/startup" }}
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 15
+          failureThreshold: 6
+      terminationGracePeriodSeconds: 100

@@ -1,0 +1,58 @@
+parameters:
+- name: environment
+  values:
+  - 'dev'
+  - 'stg'
+  - 'prod'
+- name: timeout
+  default: 5m
+- name: namespace
+- name: helmReleaseName
+
+jobs:
+- deployment: 'DeployUserTestingApi${{ parameters.environment }}'
+  displayName: 'Deploy - UserTestingApi - ${{ parameters.environment }}'
+  pool: workleap
+  environment: ${{ parameters.environment }}
+  variables:
+    - template: /shared/devops/pipelines/variables/error-logs-query-link-variables.yml
+      parameters:
+        environment: ${{ parameters.environment }}
+    - template: /shared/devops/pipelines/variables/cluster-variables.yml
+      parameters:
+        environment: ${{ parameters.environment }}
+  strategy:
+    runOnce:
+      deploy:
+        steps:
+        - task: KubeloginInstaller@0
+        - task: HelmDeploy@0
+          displayName: 'Helm Version'
+          inputs:
+            connectionType: 'Azure Resource Manager'
+            azureSubscriptionEndpoint: ${{ variables.azureSubscriptionEndpoint }}
+            azureResourceGroup: ${{ variables.kubernetesClusterResourceGroup }}
+            kubernetesCluster: ${{ variables.kubernetesClusterName }}
+            command: 'version'
+        - task: HelmDeploy@0
+          displayName: 'Helm Upgrade'
+          inputs:
+            connectionType: 'Azure Resource Manager'
+            azureSubscriptionEndpoint: ${{ variables.azureSubscriptionEndpoint }}
+            azureResourceGroup: ${{ variables.kubernetesClusterResourceGroup }}
+            kubernetesCluster: ${{ variables.kubernetesClusterName }}
+            command: upgrade
+            namespace: ${{ parameters.namespace }}
+            chartType: 'FilePath'
+            chartPath: $(Pipeline.Workspace)/manifestUserTestingApi/
+            releaseName: ${{ parameters.helmReleaseName }}
+            overrideValues: BuildVersion="$(Build.BuildNumber)",EnvironmentName="${{ parameters.environment }}"
+            valueFile: $(Pipeline.Workspace)/manifestUserTestingApi/values-${{ parameters.environment }}.yaml
+            arguments: --timeout ${{ parameters.timeout }} --atomic --cleanup-on-fail
+        - template: /shared/devops/pipelines/steps/get-error-logs-query-link-step.yml
+          parameters:
+            environment: ${{ parameters.environment}}
+            aksName: ${{ variables.kubernetesClusterName }}
+            namespace: ${{ parameters.namespace }}
+            podNameStartsWith: ${{ parameters.helmReleaseName }}
+            azureSubscription: ${{ variables.azureSubscriptionEndpoint }}

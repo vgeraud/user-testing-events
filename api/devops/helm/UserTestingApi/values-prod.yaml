@@ -1,0 +1,16 @@
+Memory:
+  Limit: "256Mi"
+  Request: "256Mi"
+Cpu:
+  Request: "100m"
+
+ReplicaNumber: 2
+
+AzureContainerRegistryUrl: "wl0prod0registry0acr01ea02dae958a.azurecr.io"
+AzureAppConfigurationUrl: "https://wl-prod-config-appcg-e3897e15e825.azconfig.io"
+
+EnvironmentName: "prod"
+Host: "platform.workleap.com"
+
+PodDisruptionBudget:
+  MinAvailable: 1

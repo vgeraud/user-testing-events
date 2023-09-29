@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <RootNamespace>Workleap.UserTesting.Api</RootNamespace>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="EnumExtensions.System.Text.Json" Version="1.1.0" />
+    <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.21.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="6.0.22" />
+    <PackageReference Include="Microsoft.Azure.AppConfiguration.AspNetCore" Version="6.0.1" />
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.19.5" />
+    <PackageReference Include="System.Text.Encodings.Web" Version="6.0.0" />
+    <PackageReference Include="Workleap.Configuration.ConfigurationStore" Version="1.1.17" />
+    <PackageReference Include="Workleap.DomainEventPropagation.Abstractions" Version="0.2.1-preview.5" />
+    <PackageReference Include="Workleap.DomainEventPropagation.Publishing" Version="0.2.1-preview.5" />
+    <PackageReference Include="Workleap.DomainEventPropagation.Subscription" Version="0.2.1-preview.5" />
+    <PackageReference Include="Workleap.HealthChecks" Version="1.0.33" />
+    <PackageReference Include="Workleap.Organization.Client" Version="1.1.171" />
+    <PackageReference Include="Workleap.Organization.Common" Version="1.1.128" />
+    <PackageReference Include="Workleap.Organization.Requests" Version="1.1.95" />
+  </ItemGroup>
+
+</Project>

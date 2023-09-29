@@ -1,0 +1,98 @@
+parameters:
+- name: defaultDevEnvironmentName
+  values:
+  - 'dev'
+  - 'stg'
+
+stages:
+  - stage: 'BuildDockerImageUserTestingApi'
+    displayName: 'Docker Image UserTestingApi'
+    jobs:
+    - template : /shared/devops/pipelines/dotnettest-job.yaml
+      parameters:
+        solutionPath: 'userTesting/api/src/Workleap.UserTesting.sln'
+        useDotnet6: true
+        testProjectsPath: |
+          userTesting/api/src/Tests/Workleap.UserTesting.Api.UnitTests/Workleap.UserTesting.Api.UnitTests.csproj
+          userTesting/api/src/Tests/Workleap.UserTesting.Api.IntegrationTests/Workleap.UserTesting.Api.IntegrationTests.csproj
+
+    - job: 'BuildUserTestingApi'
+      displayName: 'Build - UserTestingApi'
+      variables:
+          - group: nuget
+          - group: registry
+
+      steps:
+      - task: AzureCLI@2
+        displayName: 'Build and push docker image'
+        env:
+          FEED_ACCESSTOKEN: $(System.AccessToken)
+        inputs:
+          azureSubscription: 'ARM - workleap-platform-dev'
+          scriptType: 'pscore'
+          scriptLocation: 'inlineScript'
+          inlineScript: |
+            az acr build --image usertesting-usertestingapi:$(tag) --registry $(registry-dev) --file userTesting/api/src/Workleap.UserTesting.Api/Dockerfile . --secret-build-arg FEED_ACCESSTOKEN=$(System.AccessToken) --build-arg HANGFIRE_PRO_USERNAME=$(hangfire-pro-username) --secret-build-arg HANGFIRE_PRO_PASSWORD=$(hangfire-pro-password)
+
+      - task: PowerShell@2
+        displayName: Find and replace in manifests
+        inputs:
+          targetType: Inline
+          script: |
+            (Get-Content $(System.DefaultWorkingDirectory)/userTesting/api/devops/helm/UserTestingApi/Chart.yaml).replace('[[AppVersion]]', '$(tag)') | Set-Content $(System.DefaultWorkingDirectory)/userTesting/api/devops/helm/UserTestingApi/Chart.yaml
+
+      - publish: $(System.DefaultWorkingDirectory)/userTesting/api/devops/helm/UserTestingApi
+        displayName: Publish kubernetes manifests
+        artifact: manifestUserTestingApi
+
+      - publish: $(System.DefaultWorkingDirectory)/shared
+        displayName: Publish Shared Assets
+        artifact: shared
+
+  - stage: 'DeployUserTestingApiPR'
+    lockBehavior: sequential
+    displayName: 'PR (${{ parameters.defaultDevEnvironmentName }}) Deploy UserTestingApi'
+    condition: and(succeeded(), ne(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+    - template: usertestingapi-deploy-stage.yml
+      parameters:
+        environment: '${{ parameters.defaultDevEnvironmentName }}'
+        namespace: 'platform'
+        helmReleaseName: 'usertesting-usertestingapi'
+        timeout: '5m'
+
+  - stage: 'DeployUserTestingApiStaging'
+    lockBehavior: sequential
+    displayName: 'Staging Deploy UserTestingApi'
+    dependsOn: 'BuildDockerImageUserTestingApi'
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+    - template: usertestingapi-deploy-stage.yml
+      parameters:
+        environment: 'stg'
+        namespace: 'platform'
+        helmReleaseName: 'usertesting-usertestingapi'
+        timeout: '5m'
+
+  - stage: 'PromoteUserTestingApiImageToProd'
+    displayName: 'Promote UserTestingApi Image to Prod Registry'
+    dependsOn: 'DeployUserTestingApiStaging'
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+    - template: /shared/devops/pipelines/promote-image.yaml
+      parameters:
+        jobName: UserTestingApi
+        image: 'userTesting-usertestingapi'
+
+  - stage: 'DeployUserTestingApiProd'
+    lockBehavior: sequential
+    displayName: 'Prod Deploy UserTestingApi'
+    dependsOn: 'PromoteUserTestingApiImageToProd'
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+    - template: usertestingapi-deploy-stage.yml
+      parameters:
+        environment: 'prod'
+        namespace: 'platform'
+        helmReleaseName: 'usertesting-usertestingapi'
+        timeout: '5m'

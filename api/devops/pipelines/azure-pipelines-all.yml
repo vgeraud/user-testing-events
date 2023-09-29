@@ -1,0 +1,27 @@
+trigger:
+  branches:
+    include:
+    - main
+  paths:
+    include:
+    - /userTesting/api/*
+    - /userTesting/common/*
+
+variables:
+  - name: environmentName
+    value: 'dev'
+  - name: tag
+    value: '$(Build.BuildNumber)'
+  - name: major
+    value: 1
+  - name: minor
+    value: 0
+  - name: owner
+    value: 'vincent.geraud@gsoft.com'
+
+name: $(major).$(minor)$(Rev:.r)
+
+stages:
+  - template: usertestingapi-azure-pipelines.yml
+    parameters:
+      defaultDevEnvironmentName: ${{ variables.environmentName }}
